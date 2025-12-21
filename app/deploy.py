@@ -137,7 +137,7 @@ async def deploy():
     # Strategy 2: Daily at 12:00 PM (Beijing Time)
     scheduler.add_job(
         execute_browser_tasks,
-        trigger=CronTrigger(hour="7,13,19", minute="0", timezone="Asia/Shanghai"),
+        trigger=CronTrigger(hour="0,7,13,19", minute="0", timezone="Asia/Shanghai"),
         id="daily_epic_games_task",
         name="daily_epic_games_task",
         args=[headless],
