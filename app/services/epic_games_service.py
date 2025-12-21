@@ -280,7 +280,7 @@ class EpicGames:
                 continue
 
             # 将免费游戏添加至购物车
-            add_to_cart_btn = page.locator("//aside//button[@data-testid='add-to-cart-cta-button']")
+            add_to_cart_btn = page.locator("//aside//button[@data-testid='add-to-cart-cta-button-pdp-sidebar']")
             try:
                 text = await add_to_cart_btn.text_content()
                 if text == "View In Cart":
