@@ -76,7 +76,7 @@ def get_promotions() -> List[PromotionGame]:
             e["url"] = f"{URL_PRODUCT_PAGE.rstrip('/')}/{e['offerMappings'][0]['pageSlug']}"
         except (KeyError, IndexError):
             if e.get("productSlug"):
-                e["url"] = f"{URL_PRODUCT_BUNDLES.rstrip('/')}/{e['productSlug']}"
+                e["url"] = f"{URL_PRODUCT_PAGE.rstrip('/')}/{e['productSlug']}"
             else:
                 logger.info(f"Failed to get URL: {e}")
                 continue
