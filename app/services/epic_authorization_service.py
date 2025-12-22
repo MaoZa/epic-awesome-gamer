@@ -117,9 +117,12 @@ class EpicAuthorization:
         for _ in range(3):
             await self.page.goto(URL_CLAIM, wait_until="domcontentloaded")
 
-            if "true" == await self.page.locator("//egs-navigation").get_attribute("isloggedin"):
-                logger.success("Epic Games is already logged in")
-                return True
+            try:
+                if "true" == await self.page.locator("//egs-navigation").get_attribute("isloggedin"):
+                    logger.success("Epic Games is already logged in")
+                    return True
 
-            if await self._login():
-                return
+                if await self._login():
+                    return
+            except Exception as err:
+                print(err)
