@@ -281,15 +281,17 @@ class EpicGames:
 
             # 将免费游戏添加至购物车
             add_to_cart_btn = page.locator("//aside//button[@data-testid='add-to-cart-cta-button-pdp-sidebar']")
+            await add_to_cart_btn.hover()
+            add_to_cart_div = page.locator("//div[@class='eds_o3n6et0 eds_1ypbntdd eds_xd1k8g0']")
             try:
-                text = await add_to_cart_btn.text_content()
-                if text == "View In Cart":
+                text = await add_to_cart_div.text_content()
+                if text == "View In CartView In Cart":
                     logger.debug(f"🙌 Already in the shopping cart - {url=}")
                     has_pending_free_promotion = True
-                elif text == "Add To Cart":
+                elif text == "Add To CartAdd To Cart":
                     await add_to_cart_btn.click()
                     logger.debug(f"🙌 Add to the shopping cart - {url=}")
-                    await expect(add_to_cart_btn).to_have_text("View In Cart")
+                    await expect(add_to_cart_div).to_have_text("View In CartView In Cart")
                     has_pending_free_promotion = True
 
             except Exception as err:
