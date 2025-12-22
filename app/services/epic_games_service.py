@@ -291,6 +291,8 @@ class EpicGames:
                 elif text == "Add To CartAdd To Cart":
                     await add_to_cart_btn.click()
                     logger.debug(f"🙌 Add to the shopping cart - {url=}")
+                    await page.mouse.move(0, 0)
+                    await add_to_cart_btn.hover()
                     await expect(add_to_cart_div).to_have_text("View In CartView In Cart")
                     has_pending_free_promotion = True
 
