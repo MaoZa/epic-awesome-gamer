@@ -5,11 +5,13 @@
 @GitHub  : https://github.com/QIN2DIM
 @Desc    :
 """
+import json
 import os
 from pathlib import Path
+from typing import List, Optional
 
 from hcaptcha_challenger.agent import AgentConfig
-from pydantic import Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).parent
@@ -24,17 +26,30 @@ RECORD_DIR = VOLUMES_DIR.joinpath("record")
 HCAPTCHA_DIR = VOLUMES_DIR.joinpath("hcaptcha")
 
 
+class EpicAccount(BaseModel):
+    email: str
+    password: str
+
+    def __str__(self):
+        return self.email
+
+
 class EpicSettings(AgentConfig):
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True, extra="ignore")
 
-    EPIC_EMAIL: str = Field(
-        default_factory=lambda: os.getenv("EPIC_EMAIL"),
-        description="Epic 游戏账号，需要关闭多步验证",
+    EPIC_EMAIL: Optional[str] = Field(
+        default=None,
+        description="Epic 游戏账号（单账号模式，已弃用，请使用 EPIC_ACCOUNTS）",
     )
 
-    EPIC_PASSWORD: SecretStr = Field(
-        default_factory=lambda: os.getenv("EPIC_PASSWORD"),
-        description=" Epic 游戏密码，需要关闭多步验证",
+    EPIC_PASSWORD: Optional[SecretStr] = Field(
+        default=None,
+        description="Epic 游戏密码（单账号模式，已弃用，请使用 EPIC_ACCOUNTS）",
+    )
+
+    EPIC_ACCOUNTS: Optional[str] = Field(
+        default=None,
+        description="Epic 游戏账号列表（JSON 格式）",
     )
 
     DISABLE_BEZIER_TRAJECTORY: bool = Field(
@@ -75,12 +90,50 @@ class EpicSettings(AgentConfig):
     #     default="", description="System notification by Apprise\nhttps://github.com/caronc/apprise"
     # )
 
-    @property
-    def user_data_dir(self) -> Path:
-        target_ = USER_DATA_DIR.joinpath(self.EPIC_EMAIL)
+    def get_accounts(self) -> List[EpicAccount]:
+        accounts = []
+
+        if self.EPIC_ACCOUNTS:
+            try:
+                accounts_data = json.loads(self.EPIC_ACCOUNTS)
+                if isinstance(accounts_data, list):
+                    for acc in accounts_data:
+                        if isinstance(acc, dict):
+                            accounts.append(EpicAccount(
+                                email=acc.get("email"),
+                                password=acc.get("password")
+                            ))
+                        elif isinstance(acc, str):
+                            parts = acc.split(":")
+                            if len(parts) == 2:
+                                accounts.append(EpicAccount(email=parts[0], password=parts[1]))
+            except json.JSONDecodeError as e:
+                raise ValueError(f"EPIC_ACCOUNTS JSON 格式错误: {e}")
+
+        elif self.EPIC_EMAIL and self.EPIC_PASSWORD:
+            accounts.append(EpicAccount(
+                email=self.EPIC_EMAIL,
+                password=self.EPIC_PASSWORD.get_secret_value()
+            ))
+
+        if not accounts:
+            raise ValueError("未配置 Epic 账号，请设置 EPIC_ACCOUNTS 或 EPIC_EMAIL/EPIC_PASSWORD")
+
+        return accounts
+
+    def get_user_data_dir(self, email: str) -> Path:
+        target_ = USER_DATA_DIR.joinpath(email)
         if not target_.is_dir():
             target_.mkdir(parents=True, exist_ok=True)
         return target_
+
+    @property
+    def user_data_dir(self) -> Path:
+        accounts = self.get_accounts()
+        if len(accounts) == 1:
+            return self.get_user_data_dir(accounts[0].email)
+        else:
+            return USER_DATA_DIR
 
 
 settings = EpicSettings()

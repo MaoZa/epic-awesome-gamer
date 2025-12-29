@@ -85,9 +85,24 @@ docker compose up -d
 
 | 环境变量         | required | 说明                                                         |
 | ---------------- | -------- | ------------------------------------------------------------ |
-| `EPIC_EMAIL`     | **YES**  | 你的 Epic 游戏账号。<br>⚠️ **注意**：请预先禁用该账户的二步验证（2FA）。 |
-| `EPIC_PASSWORD`  | **YES**  | 你的 Epic 游戏密码。<br>⚠️ **注意**：同上，请确保已禁用二步验证。 |
+| `EPIC_ACCOUNTS`  | **YES**  | Epic 游戏账号列表（多账号模式）。<br>支持两种格式：<br>1. JSON 对象数组：`[{"email":"账号1","password":"密码1"},{"email":"账号2","password":"密码2"}]`<br>2. JSON 字符串数组：`["账号1:密码1","账号2:密码2"]`<br>⚠️ **注意**：请预先禁用这些账户的二步验证（2FA）。 |
+| `EPIC_EMAIL`     | NO       | 单个 Epic 游戏账号（已弃用，建议使用 EPIC_ACCOUNTS）。 |
+| `EPIC_PASSWORD`  | NO       | 单个 Epic 游戏密码（已弃用，建议使用 EPIC_ACCOUNTS）。 |
 | `GEMINI_API_KEY` | **YES**  | 用于接入 Google Gemini Pro Vision 多模态大模型，以应对登录过程中可能出现的**人机验证（hCaptcha）**。<br>你可以从 [Google AI Studio](https://aistudio.google.com/apikey) 免费获取，其提供的免费额度足以支撑日常使用。 |
+
+#### 多账号配置示例
+
+在 `.env` 文件中配置多个账号：
+
+```bash
+# 方式一：使用 JSON 对象数组
+EPIC_ACCOUNTS='[{"email":"account1@example.com","password":"password1"},{"email":"account2@example.com","password":"password2"}]'
+
+# 方式二：使用 JSON 字符串数组（更简洁）
+EPIC_ACCOUNTS='["account1@example.com:password1","account2@example.com:password2"]'
+```
+
+程序会自动为每个账号创建独立的浏览器数据目录，互不干扰。
 
 > [!TIP]
 > 其他环境变量主要用于微调 hCaptcha Challenger 的内部行为，通常情况下，你无需关心或修改它们，保持默认即可。

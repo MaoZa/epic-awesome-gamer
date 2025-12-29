@@ -15,14 +15,16 @@ from loguru import logger
 from playwright.async_api import expect, Page, Response
 
 from settings import SCREENSHOTS_DIR, settings
+from settings import EpicAccount
 
 URL_CLAIM = "https://store.epicgames.com/en-US/free-games"
 
 
 class EpicAuthorization:
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page, account: EpicAccount):
         self.page = page
+        self.account = account
 
         self._is_login_success_signal = asyncio.Queue()
         self._is_refresh_csrf_signal = asyncio.Queue()
@@ -67,39 +69,30 @@ class EpicAuthorization:
                     btn_ids.remove(action)
 
     async def _login(self) -> bool | None:
-        # 尽可能早地初始化机器人
         agent = AgentV(page=self.page, agent_config=settings)
 
-        # {{< SIGN IN PAGE >}}
-        logger.debug("Login with Email")
+        logger.debug(f"Login with Email: {self.account.email}")
 
         try:
             point_url = "https://www.epicgames.com/account/personal?lang=en-US&productName=egs&sessionInvalidated=true"
             await self.page.goto(point_url, wait_until="domcontentloaded")
 
-            # 1. 使用电子邮件地址登录
             email_input = self.page.locator("#email")
             await email_input.clear()
-            await email_input.type(settings.EPIC_EMAIL)
+            await email_input.type(self.account.email)
 
-            # 2. 点击继续按钮
             await self.page.click("#continue")
 
-            # 3. 输入密码
             password_input = self.page.locator("#password")
             await password_input.clear()
-            await password_input.type(settings.EPIC_PASSWORD.get_secret_value())
+            await password_input.type(self.account.password)
 
-            # 4. 点击登录按钮，触发人机挑战值守监听器
-            # Active hCaptcha checkbox
             await self.page.click("#sign-in")
 
-            # Active hCaptcha challenge
             await agent.wait_for_challenge()
 
-            # Wait for the page to redirect
             await asyncio.wait_for(self._is_login_success_signal.get(), timeout=60)
-            logger.success("Login success")
+            logger.success(f"Login success for {self.account.email}")
 
             await asyncio.wait_for(self._handle_right_account_validation(), timeout=60)
             logger.success("Right account validation success")
@@ -108,7 +101,7 @@ class EpicAuthorization:
             logger.warning(f"{err}")
             sr = SCREENSHOTS_DIR.joinpath("authorization")
             sr.mkdir(parents=True, exist_ok=True)
-            await self.page.screenshot(path=sr.joinpath(f"login-{int(time.time())}.png"))
+            await self.page.screenshot(path=sr.joinpath(f"login-{self.account.email}-{int(time.time())}.png"))
             return None
 
     async def invoke(self):

@@ -28,7 +28,7 @@ from pytz import timezone
 from services.epic_authorization_service import EpicAuthorization
 from services.epic_games_service import EpicAgent
 from settings import LOG_DIR, RECORD_DIR
-from settings import settings
+from settings import settings, EpicAccount
 from utils import init_log
 
 # Initialize logging configuration for runtime, error, and serialization logs
@@ -48,41 +48,60 @@ async def execute_browser_tasks(headless: bool = True):
     Execute Epic Games free game collection tasks using browser automation.
 
     This function handles the complete workflow of authenticating with Epic Games
-    and collecting available free games through browser automation.
+    and collecting available free games through browser automation for all configured accounts.
 
     Args:
         headless: Whether to run browser in headless mode
     """
-    logger.debug("Starting Epic Games collection task")
+    accounts = settings.get_accounts()
+    logger.info(f"Found {len(accounts)} account(s) to process")
 
-    # Configure browser with anti-detection features and video recording
+    for account in accounts:
+        logger.info(f"Starting task for account: {account.email}")
+        user_data_dir = settings.get_user_data_dir(account.email)
+
+        try:
+            await _execute_single_account_task(account, user_data_dir, headless)
+            logger.success(f"Task completed for account: {account.email}")
+        except Exception as e:
+            logger.error(f"Failed to process account {account.email}: {e}")
+            continue
+
+
+async def _execute_single_account_task(account: EpicAccount, user_data_dir, headless: bool):
+    """
+    Execute Epic Games collection task for a single account.
+
+    Args:
+        account: EpicAccount instance with email and password
+        user_data_dir: Directory for browser user data
+        headless: Whether to run browser in headless mode
+    """
+    logger.debug(f"Starting Epic Games collection task for {account.email}")
+
     async with AsyncCamoufox(
         persistent_context=True,
-        user_data_dir=settings.user_data_dir,
+        user_data_dir=user_data_dir,
         screen=Screen(max_width=1920, max_height=1080, min_height=1080, min_width=1920),
         record_video_dir=RECORD_DIR,
         record_video_size=ViewportSize(width=1920, height=1080),
         humanize=0.2,
         headless=headless,
     ) as browser:
-        # Initialize or reuse existing browser page
         page = browser.pages[0] if browser.pages else await browser.new_page()
         logger.debug("Browser initialized successfully")
 
-        # Handle Epic Games authentication
         logger.debug("Initiating Epic Games authentication")
-        agent = EpicAuthorization(page)
+        agent = EpicAuthorization(page, account)
         await agent.invoke()
         logger.debug("Authentication completed")
 
-        # Execute a free games collection on new page
         logger.debug("Starting free games collection process")
         game_page = await browser.new_page()
         agent = EpicAgent(game_page)
         await agent.collect_epic_games()
         logger.debug("Free games collection completed")
 
-        # Cleanup browser resources
         logger.debug("Cleaning up browser resources")
         with suppress(Exception):
             for p in browser.pages:
